@@ -1,0 +1,39 @@
+{
+  "name": "buffer-data",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "lint": "eslint src --ext .ts",
+    "build": "tsc -b",
+    "prepare": "husky install"
+  },
+  "author": "Andrius Skerla",
+  "license": "ISC",
+  "lint-staged": {
+    "src/**/*.ts": [
+      "npm run lint -- --fix"
+    ]
+  },
+  "devDependencies": {
+    "@types/chai": "^4.2.21",
+    "@types/mocha": "^9.0.0",
+    "@types/node": "^16.7.1",
+    "@types/sinon": "^10.0.2",
+    "@typescript-eslint/eslint-plugin": "^4.29.2",
+    "@typescript-eslint/parser": "^4.29.2",
+    "chai": "^4.3.4",
+    "eslint": "^7.32.0",
+    "eslint-config-prettier": "^8.3.0",
+    "eslint-import-resolver-typescript": "^2.4.0",
+    "eslint-plugin-import": "^2.24.1",
+    "eslint-plugin-prettier": "^3.4.1",
+    "lint-staged": "^11.1.2",
+    "mocha": "^9.1.0",
+    "prettier": "^2.3.2",
+    "sinon": "^11.1.2",
+    "ts-node": "^10.2.1",
+    "typescript": "^4.3.5"
+  }
+}
