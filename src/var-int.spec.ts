@@ -3,22 +3,13 @@ import { VarInt } from './var-int';
 
 describe('var-int', () => {
   it('should read 0x61', async () => {
-    expect(VarInt.read(Buffer.from('6a00', 'hex'))).to.deep.equals({
-      value: 106,
-      remaining: Buffer.from('00', 'hex'),
-    });
+    expect(VarInt.read(Buffer.from('6a00', 'hex'))).to.deep.equals([106, Buffer.from('00', 'hex')]);
   });
   it('should read 0xfd2602', async () => {
-    expect(VarInt.read(Buffer.from('fd260200', 'hex'))).to.deep.equals({
-      value: 550,
-      remaining: Buffer.from('00', 'hex'),
-    });
+    expect(VarInt.read(Buffer.from('fd260200', 'hex'))).to.deep.equals([550, Buffer.from('00', 'hex')]);
   });
   it('should read 0xfe703a0f00', async () => {
-    expect(VarInt.read(Buffer.from('fe703a0f00ff', 'hex'))).to.deep.equals({
-      value: 998000,
-      remaining: Buffer.from('ff', 'hex'),
-    });
+    expect(VarInt.read(Buffer.from('fe703a0f00ff', 'hex'))).to.deep.equals([998000, Buffer.from('ff', 'hex')]);
   });
 
   it('should write 0x61', async () => {

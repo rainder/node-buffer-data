@@ -120,10 +120,20 @@ export namespace VarObject {
     }
   }
 
+  /**
+   *
+   * @param {T} input
+   * @returns {Buffer}
+   */
   export function encode<T extends Record<string, unknown>>(input: T): Buffer {
     return VarType.encode(input as never) ?? Buffer.alloc(0);
   }
 
+  /**
+   *
+   * @param {Buffer} input
+   * @returns {T}
+   */
   export function decode<T>(input: Buffer): T {
     const decoded = VarType.decode(input);
 
