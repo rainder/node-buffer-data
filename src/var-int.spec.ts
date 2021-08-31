@@ -23,4 +23,10 @@ describe('var-int', () => {
   it('should write 0xfe703a0f00', async () => {
     expect(VarInt.write(998000)).to.deep.equals(Buffer.from('fe703a0f00', 'hex'));
   });
+
+  it('should write', async () => {
+    const b = VarInt.write(30161);
+    console.log(VarInt.read(b));
+    console.log(b);
+  });
 });

@@ -19,7 +19,7 @@ export namespace VarInt {
       return [input.readUInt32LE(1), input.slice(5)];
     }
 
-    throw new Error('dunno');
+    throw new Error(`dunno: ${input.toString('hex')}`);
   }
 
   /**
@@ -43,6 +43,6 @@ export namespace VarInt {
       buffer.writeUInt32LE(value);
       return Buffer.from([0xfe, ...buffer]);
     }
-    throw new Error('dunno');
+    throw new Error(`dunno: ${value}`);
   }
 }

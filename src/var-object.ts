@@ -6,7 +6,7 @@ export namespace VarObject {
   namespace VarType {
     interface DataTypeArray extends Array<DataTypeValue> {}
     interface DataTypeRecord extends Record<string, DataTypeValue> {}
-    type DataTypeValue = null | boolean | string | number | DataTypeArray | DataTypeRecord;
+    type DataTypeValue = Buffer | null | boolean | string | number | DataTypeArray | DataTypeRecord;
     export type DataType = DataTypeValue;
 
     export enum Type {
@@ -16,6 +16,7 @@ export namespace VarObject {
       Number = 0x03,
       Object = 0x04,
       Array = 0x05,
+      Buffer = 0x06,
     }
 
     export function encode(value: DataType): Buffer | null {
@@ -29,6 +30,10 @@ export namespace VarObject {
 
       if (typeof value === 'boolean') {
         return Buffer.from([Type.Boolean, value ? 0x01 : 0x00]);
+      }
+
+      if (Buffer.isBuffer(value)) {
+        return Buffer.from([Type.Buffer, ...VarBuffer.write(value)]);
       }
 
       if (Array.isArray(value)) {
@@ -114,6 +119,9 @@ export namespace VarObject {
 
       if (type === VarType.Type.Boolean) {
         return [!!r0[0], r0.slice(1)];
+      }
+      if (type === VarType.Type.Buffer) {
+        return VarBuffer.read(r0);
       }
 
       return [null] as never;
