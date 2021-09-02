@@ -5,7 +5,9 @@ import { VarInt } from './var-int';
 export namespace VarObject {
   namespace VarType {
     interface DataTypeArray extends Array<DataTypeValue> {}
+
     interface DataTypeRecord extends Record<string, DataTypeValue> {}
+
     type DataTypeValue = Buffer | null | boolean | string | number | DataTypeArray | DataTypeRecord;
     export type DataType = DataTypeValue;
 
@@ -17,11 +19,20 @@ export namespace VarObject {
       Object = 0x04,
       Array = 0x05,
       Buffer = 0x06,
+      Double = 0x07,
     }
 
     export function encode(value: DataType): Buffer | null {
       if (typeof value === 'number') {
-        return Buffer.from([Type.Number, ...VarInt.write(value)]);
+        if (value % 1) {
+          const buffer = Buffer.allocUnsafe(8);
+
+          buffer.writeDoubleBE(value, 0);
+
+          return Buffer.from([Type.Double, ...buffer]);
+        } else {
+          return Buffer.from([Type.Number, ...VarInt.write(value)]);
+        }
       }
 
       if (typeof value === 'string') {
@@ -47,6 +58,17 @@ export namespace VarObject {
       }
 
       if (typeof value === 'object') {
+        if (value.constructor !== Object) {
+          if (typeof value.toJSON === 'function') {
+            // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+            return encode((value as any).toJSON());
+          }
+
+          if (typeof value.toString === 'function') {
+            return encode(value.toString());
+          }
+        }
+
         const stack: Buffer[] = [];
 
         for (const [k, v] of Object.entries(value)) {
@@ -96,6 +118,10 @@ export namespace VarObject {
         return VarInt.read(r0);
       }
 
+      if (type === VarType.Type.Double) {
+        return [r0.readDoubleBE(0), r0.slice(8)];
+      }
+
       if (type === VarType.Type.String) {
         const buffers = VarBuffer.read(r0);
 
@@ -123,8 +149,12 @@ export namespace VarObject {
       if (type === VarType.Type.Buffer) {
         return VarBuffer.read(r0);
       }
+      if (type === VarType.Type.Null) {
+        return [null, r0];
+      }
 
-      return [null] as never;
+      // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
+      throw new Error(`cannot decode: ${type}`);
     }
   }
 
