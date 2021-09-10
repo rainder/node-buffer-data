@@ -210,7 +210,7 @@ export namespace VarType {
         const extendedType = extendedTypes[identifier.toString()];
 
         if (!extendedType) {
-          throw new Error(`Cannot decode custom type. Decoder is not defined ${identifier.toString()}`);
+          throw new Error(`Cannot decode custom type. Decoder for '${identifier.toString()}' is not defined`);
         }
 
         return [extendedType.decode(value) as never, r2];
