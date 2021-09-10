@@ -209,11 +209,15 @@ export namespace VarType {
         const [value, r2] = VarBuffer.read(r1);
         const extendedType = extendedTypes[identifier.toString()];
 
+        if (!extendedType) {
+          throw new Error(`Cannot decode custom type. Decoder is not defined ${identifier.toString()}`);
+        }
+
         return [extendedType.decode(value) as never, r2];
       }
 
       // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
-      throw new Error(`cannot decode: ${type}`);
+      throw new Error(`Cannot decode unknown data type: ${type}`);
     }
   }
 }
