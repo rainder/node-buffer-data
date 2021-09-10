@@ -140,24 +140,51 @@ describe('json-tokenizer', () => {
 
   it('should encode and decode location object', async () => {
     const input = {
-      idempotencyKey:
-        '898989898989898989898989:kRSQ4zYTTwO2kgMPRYOaoGbKFWgC421EArGvlTADSdUHWPxPaaEuvspmt5sezKPHuZHnSZlBJph9zaLwN23bFNfk8AqQVMMq3fFH',
-      vehicleId: 'wZxhgmIwCmC3MxhPdL0fEb',
-      consumerId: '898989898989898989898989',
-      providerId: '000000000000000000000001',
-      displayCurrencyCode: null,
-      userId: 'one',
-      webhookUrl: null,
-      location: {
-        location: {
-          latitude: 51.5,
-          longitude: -0.15,
-        },
+      string: 'one',
+      nullValue: null,
+      object: {
+        double: 123.556,
+        negDouble: -123.546,
+        int: 1000,
+        negInt: -1000,
       },
+      array: [{}],
+      uInt: new Uint8Array([1, 2, 3]),
+      date: new Date(),
     };
     const enc = VarObject.encode(input);
     const result = VarObject.decode(enc);
 
+    console.log(result);
     expect(result).to.deep.equals(input);
+  });
+
+  it('should ', async () => {
+    class MyClass {
+      constructor(public readonly value: string) {}
+    }
+
+    const coder = VarObject.create({
+      myType: {
+        identify: (value) => value instanceof MyClass,
+        encode(value: MyClass) {
+          return Buffer.from(value.value);
+        },
+        decode(value: Buffer) {
+          return new MyClass(value.toString());
+        },
+      },
+    });
+
+    const input = {
+      asd: new MyClass('some value'),
+    };
+
+    const enc = coder.encode(input);
+    const decoded = coder.decode<{ asd: MyClass }>(enc);
+
+    expect(decoded).to.deep.equals(input);
+
+    expect(decoded.asd).to.be.instanceof(MyClass);
   });
 });

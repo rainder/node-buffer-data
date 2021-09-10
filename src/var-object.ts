@@ -1,180 +1,30 @@
 /* eslint-disable @typescript-eslint/no-empty-interface */
-import { VarBuffer } from './var-buffer';
-import { VarInt } from './var-int';
+import { VarType } from './var-type';
 
 export namespace VarObject {
-  namespace VarType {
-    interface DataTypeArray extends Array<DataTypeValue> {}
+  export interface Coder {
+    encode: <T extends Record<string, unknown>>(input: T) => Buffer;
 
-    interface DataTypeRecord extends Record<string, DataTypeValue> {}
-
-    type DataTypeValue = Buffer | null | boolean | string | number | DataTypeArray | DataTypeRecord;
-    export type DataType = DataTypeValue;
-
-    export enum Type {
-      Null = 0x00,
-      Boolean = 0x01,
-      String = 0x02,
-      Number = 0x03,
-      Object = 0x04,
-      Array = 0x05,
-      Buffer = 0x06,
-      Double = 0x07,
-    }
-
-    export function encode(value: DataType): Buffer | null {
-      if (typeof value === 'number') {
-        if (value % 1) {
-          const buffer = Buffer.allocUnsafe(8);
-
-          buffer.writeDoubleBE(value, 0);
-
-          return Buffer.from([Type.Double, ...buffer]);
-        } else {
-          return Buffer.from([Type.Number, ...VarInt.write(value)]);
-        }
-      }
-
-      if (typeof value === 'string') {
-        return Buffer.from([Type.String, ...VarBuffer.write(Buffer.from(value))]);
-      }
-
-      if (typeof value === 'boolean') {
-        return Buffer.from([Type.Boolean, value ? 0x01 : 0x00]);
-      }
-
-      if (Buffer.isBuffer(value)) {
-        return Buffer.from([Type.Buffer, ...VarBuffer.write(value)]);
-      }
-
-      if (Array.isArray(value)) {
-        const list = value.map((element): Buffer | null => encode(element)).filter((item): item is Buffer => !!item);
-
-        return Buffer.from([Type.Array, ...VarInt.write(list.length), ...Buffer.concat(list)]);
-      }
-
-      if (value === null) {
-        return Buffer.from([Type.Null]);
-      }
-
-      if (typeof value === 'object') {
-        if (value.constructor !== Object) {
-          if (typeof value.toJSON === 'function') {
-            // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
-            return encode((value as any).toJSON());
-          }
-
-          if (typeof value.toString === 'function') {
-            return encode(value.toString());
-          }
-        }
-
-        const stack: Buffer[] = [];
-
-        for (const [k, v] of Object.entries(value)) {
-          const key = VarBuffer.write(Buffer.from(k));
-          const encodedValue = VarType.encode(v);
-
-          if (encodedValue !== null) {
-            stack.push(key, encodedValue);
-          }
-        }
-
-        const data = Buffer.concat(stack);
-
-        return Buffer.from([Type.Object, ...VarInt.write(data.length), ...data]);
-      }
-
-      return null;
-    }
-
-    export function readType(buffer: Buffer): [Type, Buffer] {
-      const type = buffer[0];
-      const rest = buffer.slice(1);
-
-      return [type, rest];
-    }
-
-    export function decode(input: Buffer): [DataType, Buffer] {
-      const [type, r0] = VarType.readType(input);
-
-      if (type === VarType.Type.Object) {
-        const result: DataTypeRecord = {};
-        const [length, rest] = VarInt.read(r0);
-        let chunk = rest.slice(0, length);
-
-        while (chunk?.length) {
-          const [key, r1] = VarBuffer.read(chunk);
-          const decoded = decode(r1);
-
-          result[key.toString()] = decoded[0];
-          chunk = decoded[1];
-        }
-
-        return [result, rest.slice(length)];
-      }
-
-      if (type === VarType.Type.Number) {
-        return VarInt.read(r0);
-      }
-
-      if (type === VarType.Type.Double) {
-        return [r0.readDoubleBE(0), r0.slice(8)];
-      }
-
-      if (type === VarType.Type.String) {
-        const buffers = VarBuffer.read(r0);
-
-        return [buffers[0].toString(), buffers[1]];
-      }
-
-      if (type === VarType.Type.Array) {
-        const result: Array<DataType> = [];
-        const [length, r1] = VarInt.read(r0);
-        let rest = r1;
-
-        for (let i = 0; i < length; i++) {
-          const decoded = decode(rest);
-
-          result.push(decoded[0]);
-          rest = decoded[1];
-        }
-
-        return [result, rest];
-      }
-
-      if (type === VarType.Type.Boolean) {
-        return [!!r0[0], r0.slice(1)];
-      }
-      if (type === VarType.Type.Buffer) {
-        return VarBuffer.read(r0);
-      }
-      if (type === VarType.Type.Null) {
-        return [null, r0];
-      }
-
-      // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
-      throw new Error(`cannot decode: ${type}`);
-    }
+    decode: <T>(input: Buffer) => T;
   }
 
-  /**
-   *
-   * @param {T} input
-   * @returns {Buffer}
-   */
-  export function encode<T extends Record<string, unknown>>(input: T): Buffer {
-    return VarType.encode(input as never) ?? Buffer.alloc(0);
-  }
+  const defaultCoder = create({});
 
-  /**
-   *
-   * @param {Buffer} input
-   * @returns {T}
-   */
-  export function decode<T>(input: Buffer): T {
-    const decoded = VarType.decode(input);
+  export const encode = defaultCoder.encode;
+  export const decode = defaultCoder.decode;
 
-    return decoded[0] as never;
+  export function create(extendedTypes: VarType.ExtendedTypes): Coder {
+    const varType = VarType.create(extendedTypes);
+
+    return {
+      encode(input) {
+        return varType.encode(input as never) ?? Buffer.alloc(0);
+      },
+      decode(input) {
+        const decoded = varType.decode(input);
+
+        return decoded[0] as never;
+      },
+    };
   }
 }
