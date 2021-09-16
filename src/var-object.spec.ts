@@ -1,70 +1,16 @@
 import { expect } from 'chai';
 import { VarObject } from './var-object';
 
-describe('json-tokenizer', () => {
-  it('should enc dec1', async () => {
-    const original = {
-      hello: 5,
-      someString: 'string',
-      object: {
-        nullValue: null,
-      },
-      arrayOfRandomItems: [
-        15,
-        {
-          booleanValue: true,
-          booleanValueFalse: false,
-        },
-      ],
-    };
-
-    const encoded = VarObject.encode(original);
-    const decoded = VarObject.decode(encoded);
-
-    console.log(encoded);
-    console.log(encoded.length);
-    console.log(JSON.stringify(original).length);
-
-    console.log(decoded);
-    expect(decoded).to.deep.equals(original);
-  });
-  it('should enc dec2', async () => {
-    const original = {
-      u: undefined,
-      cl: class {},
-      fn: () => null,
-      a: [() => null],
-      someString: 'string',
-    };
-
-    const encoded = VarObject.encode(original);
-    const decoded = VarObject.decode(encoded);
-
-    expect(decoded).to.deep.equals({
-      a: [],
-      someString: 'string',
-    });
-  });
-  it('should encode array of buffers', async () => {
-    const original = {
-      items: [Buffer.from('hello')],
-    };
-
-    const encoded = VarObject.encode(original);
-    const decoded = VarObject.decode(encoded);
-
-    expect(decoded).to.deep.equals(original);
-  });
-
+describe('var-object', () => {
   it('should compare time', async function () {
     this.timeout(0);
 
-    const measure = (fn: () => void) => {
+    const measure = (name: string, fn: () => void) => {
       const now = Date.now();
       for (let i = 0; i < 1e3; i++) {
         fn();
       }
-      console.log((Date.now() - now) / 1000);
+      console.log(name, (Date.now() - now) / 1000);
     };
 
     const json: any = {
@@ -83,65 +29,34 @@ describe('json-tokenizer', () => {
       json.array.push({ ...json.array[0] });
     }
 
-    measure(() => {
+    measure('JSON.stringify', () => {
       JSON.stringify(json);
     });
 
-    measure(() => {
+    measure('VarObject.encode', () => {
       VarObject.encode(json);
     });
   });
 
-  it('should encode doubles', async () => {
-    const input = {
-      num: 122323.123456123,
-    };
-    const enc = VarObject.encode(input);
-    const dec = VarObject.decode(enc);
-
-    expect(dec).to.deep.equals(input);
-  });
-
-  it('should encode instance of a class using toString()', async () => {
-    class MyClass {
-      toString() {
-        return 'MyClass';
-      }
-    }
+  it('should throw an error when customtype is not available for provided value', async () => {
+    class MyClass {}
 
     const input = {
       i: new MyClass(),
     };
-    const enc = VarObject.encode(input);
-    const dec = VarObject.decode(enc);
 
-    expect(dec).to.deep.equals({
-      i: 'MyClass',
-    });
+    expect(() => {
+      VarObject.encode(input);
+    }).to.throw('cannot encode');
   });
 
-  it('should encode instance of a class using toJSON()', async () => {
-    class MyClass {
-      toJSON() {
-        return { json: 'MyClass' };
-      }
-    }
-
-    const input = {
-      i: new MyClass(),
-    };
-    const enc = VarObject.encode(input);
-    const dec = VarObject.decode(enc);
-
-    expect(dec).to.deep.equals({
-      i: { json: 'MyClass' },
-    });
-  });
-
-  it('should encode and decode location object', async () => {
+  it('should encode and decode all supported value types', async () => {
     const input = {
       string: 'one',
       nullValue: null,
+      zero: 0,
+      // negZero: -0,
+      num: 122323.123456123,
       object: {
         double: 123.556,
         negDouble: -123.546,
@@ -151,7 +66,18 @@ describe('json-tokenizer', () => {
       array: [{}],
       uInt: new Uint8Array([1, 2, 3]),
       date: new Date(),
+      buffer: Buffer.alloc(8),
+      undefined: undefined,
+      bigint: BigInt('0x1234567890'),
+      set: new Set([1, 2, 3, 4]),
+      map: new Map([
+        [1, 2],
+        [3, 4],
+      ]),
+      regexp: new RegExp('^a-z$', 'ig'),
+      infinity: Infinity,
     };
+
     const enc = VarObject.encode(input);
     const result = VarObject.decode(enc);
 
@@ -159,7 +85,7 @@ describe('json-tokenizer', () => {
     expect(result).to.deep.equals(input);
   });
 
-  it('should ', async () => {
+  it('should hydrate custom class', async () => {
     class MyClass {
       constructor(public readonly value: string) {}
     }
@@ -187,4 +113,28 @@ describe('json-tokenizer', () => {
 
     expect(decoded.asd).to.be.instanceof(MyClass);
   });
+
+  // it('should throw an error if trying to decode without extendedTypes defined', async () => {
+  //   class MyClass {
+  //     toBuffer() {
+  //       return Buffer.from([]);
+  //     }
+  //   }
+  //
+  //   const coder1 = VarObject.create({
+  //     test: {
+  //       identify: (value) => value instanceof MyClass,
+  //       encode: (value: MyClass) => value.toBuffer(),
+  //       decode: () => new MyClass(),
+  //     },
+  //   });
+  //
+  //   const coder2 = VarObject.create({});
+  //
+  //   const encoded = coder1.encode({});
+  //
+  //   expect(() => {
+  //     coder2.decode(encoded);
+  //   }).to.throw('version mismatch');
+  // });
 });

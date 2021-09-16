@@ -1,4 +1,5 @@
 /* eslint-disable @typescript-eslint/no-empty-interface */
+import * as crypto from 'crypto';
 import { VarBuffer } from './var-buffer';
 import { VarInt } from './var-int';
 
@@ -7,7 +8,21 @@ export namespace VarType {
 
   interface DataTypeRecord extends Record<string, DataTypeValue> {}
 
-  type DataTypeValue = Buffer | null | boolean | string | number | DataTypeArray | DataTypeRecord | Date | Uint8Array;
+  type DataTypeValue =
+    | Buffer
+    | null
+    | boolean
+    | string
+    | number
+    | DataTypeArray
+    | DataTypeRecord
+    | Date
+    | Uint8Array
+    | undefined
+    | bigint
+    | Set<any>
+    | Map<any, any>
+    | RegExp;
   export type DataType = DataTypeValue;
 
   export type ExtendedType<T = any> = {
@@ -30,6 +45,12 @@ export namespace VarType {
     Date = 0x08,
     Uint8Array = 0x09,
     CustomType = 0x0a,
+    Undefined = 0x0b,
+    BigInt = 0x0c,
+    Set = 0x0d,
+    Map = 0x0e,
+    RegExp = 0x0f,
+    Infinity = 0x10,
   }
 
   export function create(extendedTypes: ExtendedTypes) {
@@ -40,8 +61,12 @@ export namespace VarType {
       decode,
     };
 
-    function encode(value: DataType): Buffer | null {
+    function encode(value: DataType): Buffer {
       if (typeof value === 'number') {
+        if (value === Infinity) {
+          return Buffer.from([Type.Infinity]);
+        }
+
         if (value % 1 || value < 0) {
           const buffer = Buffer.allocUnsafe(8);
 
@@ -83,34 +108,15 @@ export namespace VarType {
         return Buffer.from([Type.Uint8Array, ...VarBuffer.write(Buffer.from(value))]);
       }
 
+      if (value === undefined) {
+        return Buffer.from([Type.Undefined]);
+      }
+
       if (value === null) {
         return Buffer.from([Type.Null]);
       }
 
-      const type = normalizedExtendedTypes.find(([, type]) => type.identify(value));
-
-      if (type) {
-        const [identifier, extendedTypeDefinition] = type;
-
-        return Buffer.from([
-          Type.CustomType,
-          ...VarBuffer.write(Buffer.from(identifier)),
-          ...VarBuffer.write(extendedTypeDefinition.encode(value)),
-        ]);
-      }
-
-      if (typeof value === 'object') {
-        if (value.constructor !== Object) {
-          if (typeof value.toJSON === 'function') {
-            // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
-            return encode((value as any).toJSON());
-          }
-
-          if (typeof value.toString === 'function') {
-            return encode(value.toString());
-          }
-        }
-
+      if (typeof value === 'object' && value.constructor === Object) {
         const stack: Buffer[] = [];
 
         for (const [k, v] of Object.entries(value)) {
@@ -127,7 +133,39 @@ export namespace VarType {
         return Buffer.from([Type.Object, ...VarInt.write(data.length), ...data]);
       }
 
-      return null;
+      if (typeof value === 'bigint') {
+        const hex = value.toString(16);
+        const hexNormalized = hex.padStart(Math.round(hex.length / 2) * 2, '0');
+
+        return Buffer.from([Type.BigInt, ...VarBuffer.write(Buffer.from(hexNormalized, 'hex'))]);
+      }
+
+      const type = normalizedExtendedTypes.find(([, type]) => type.identify(value));
+
+      if (type) {
+        const [identifier, extendedTypeDefinition] = type;
+
+        return Buffer.from([
+          Type.CustomType,
+          ...VarBuffer.write(Buffer.from(identifier)),
+          ...VarBuffer.write(extendedTypeDefinition.encode(value)),
+        ]);
+      }
+
+      if (value instanceof Set) {
+        return Buffer.from([Type.Set, ...encode(Array.from(value.values()))]);
+      }
+
+      if (value instanceof Map) {
+        return Buffer.from([Type.Map, ...encode(Array.from(value.entries()))]);
+      }
+
+      if (value instanceof RegExp) {
+        return Buffer.from([Type.RegExp, ...encode([value.source, value.flags])]);
+      }
+
+      // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
+      throw new Error(`cannot encode (${typeof value}) ${value}`);
     }
 
     function readType(buffer: Buffer): [Type, Buffer] {
@@ -156,6 +194,12 @@ export namespace VarType {
         return [result, rest.slice(length)];
       }
 
+      if (type === VarType.Type.String) {
+        const buffers = VarBuffer.read(r0);
+
+        return [buffers[0].toString(), buffers[1]];
+      }
+
       if (type === VarType.Type.Number) {
         return VarInt.read(r0);
       }
@@ -164,14 +208,16 @@ export namespace VarType {
         return [r0.readDoubleBE(0), r0.slice(8)];
       }
 
-      if (type === VarType.Type.Date) {
-        return [new Date(r0.readDoubleBE(0)), r0.slice(8)];
+      if (type === VarType.Type.Null) {
+        return [null, r0];
       }
 
-      if (type === VarType.Type.String) {
-        const buffers = VarBuffer.read(r0);
+      if (type === VarType.Type.Undefined) {
+        return [undefined, r0];
+      }
 
-        return [buffers[0].toString(), buffers[1]];
+      if (type === VarType.Type.Boolean) {
+        return [!!r0[0], r0.slice(1)];
       }
 
       if (type === VarType.Type.Array) {
@@ -189,19 +235,18 @@ export namespace VarType {
         return [result, rest];
       }
 
-      if (type === VarType.Type.Boolean) {
-        return [!!r0[0], r0.slice(1)];
+      if (type === VarType.Type.Date) {
+        return [new Date(r0.readDoubleBE(0)), r0.slice(8)];
       }
+
       if (type === VarType.Type.Buffer) {
         return VarBuffer.read(r0);
       }
+
       if (type === VarType.Type.Uint8Array) {
         const [a, b] = VarBuffer.read(r0);
 
         return [Uint8Array.from(a), b];
-      }
-      if (type === VarType.Type.Null) {
-        return [null, r0];
       }
 
       if (type === VarType.Type.CustomType) {
@@ -214,6 +259,34 @@ export namespace VarType {
         }
 
         return [extendedType.decode(value) as never, r2];
+      }
+
+      if (type === VarType.Type.BigInt) {
+        const [a, b] = VarBuffer.read(r0);
+
+        return [BigInt(`0x${a.toString('hex')}`), b];
+      }
+
+      if (type === VarType.Type.Set) {
+        const [a, b] = decode(r0);
+
+        return [new Set(a as any[]), b];
+      }
+
+      if (type === VarType.Type.Map) {
+        const [a, b] = decode(r0);
+
+        return [new Map(a as any[]), b];
+      }
+
+      if (type === VarType.Type.RegExp) {
+        const [a, b] = decode(r0);
+
+        return [new RegExp(...(a as [string, string])), b];
+      }
+
+      if (type === VarType.Type.Infinity) {
+        return [Infinity, r0];
       }
 
       // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
