@@ -27,7 +27,8 @@ export namespace VarObject {
         //   throw new Error('version mismatch');
         // }
 
-        const decoded = varType.decode(input.slice(2));
+        // const decoded = varType.decode(input.slice(2));
+        const decoded = varType.decode(input);
 
         return decoded[0] as never;
       },
