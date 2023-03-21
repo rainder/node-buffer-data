@@ -19,6 +19,13 @@ export namespace VarInt {
       return [input.readUInt32LE(1), input.slice(5)];
     }
 
+    if (first === 0xff) {
+      const a = input.readUInt32LE(1);
+      const b = input.readUInt32LE(5);
+
+      return [b * 0xffffffff + a, input.slice(9)];
+    }
+
     throw new Error(`dunno: ${input.toString('hex')}`);
   }
 
@@ -28,6 +35,7 @@ export namespace VarInt {
    * @returns {Buffer}
    */
   export function write(value: number): Buffer {
+    // 0 - 252
     if (value <= 0xfc) {
       return Buffer.from([value]);
     }
@@ -38,11 +46,23 @@ export namespace VarInt {
       return Buffer.from([0xfd, ...buffer]);
     }
 
-    if (value <= 0xffffffff) {
+    if (value <= 0xffff_ffff) {
       const buffer = Buffer.allocUnsafe(4);
       buffer.writeUInt32LE(value);
       return Buffer.from([0xfe, ...buffer]);
     }
+
+    if (value <= 0xffff_ffff_ffff_ffff) {
+      const buffer = Buffer.allocUnsafe(8);
+      const a = value % 0xffff_ffff;
+      const b = (value - a) / 0xffff_ffff;
+
+      buffer.writeUInt32LE(a, 0);
+      buffer.writeUInt32LE(b, 4);
+
+      return Buffer.from([0xff, ...buffer]);
+    }
+
     throw new Error(`dunno: ${value}`);
   }
 }

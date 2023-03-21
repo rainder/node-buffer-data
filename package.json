@@ -1,6 +1,6 @@
 {
   "name": "buffer-data",
-  "version": "1.2.1",
+  "version": "1.3.0",
   "description": "",
   "main": "build",
   "types": "build",
@@ -33,6 +33,7 @@
     "eslint-import-resolver-typescript": "^2.4.0",
     "eslint-plugin-import": "^2.24.1",
     "eslint-plugin-prettier": "^3.4.1",
+    "husky": "^7.0.4",
     "lint-staged": "^11.1.2",
     "mocha": "^9.1.0",
     "prettier": "^2.3.2",
