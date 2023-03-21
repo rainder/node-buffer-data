@@ -7,7 +7,7 @@
   "scripts": {
     "test": "mocha -r ts-node/register 'src/*.spec.ts'",
     "lint": "eslint src --ext .ts",
-    "build": "tsc -b",
+    "build": "tsc -b .",
     "prepare": "husky install"
   },
   "author": "Andrius Skerla",
