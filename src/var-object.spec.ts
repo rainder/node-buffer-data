@@ -67,7 +67,7 @@ describe('var-object', () => {
       uInt: new Uint8Array([1, 2, 3]),
       date: new Date(),
       buffer: Buffer.alloc(8),
-      undefined: undefined,
+      // undefined: undefined,
       bigint: BigInt('0x1234567890'),
       set: new Set([1, 2, 3, 4]),
       map: new Map([
@@ -112,6 +112,21 @@ describe('var-object', () => {
     expect(decoded).to.deep.equals(input);
 
     expect(decoded.asd).to.be.instanceof(MyClass);
+  });
+  it('should omit undefined fields', async () => {
+    const coder = VarObject.create();
+
+    const input = {
+      asd: 'asd',
+      undefined: undefined,
+    };
+
+    const enc = coder.encode(input);
+    const decoded = coder.decode<unknown>(enc);
+
+    expect(decoded).to.deep.equals({
+      asd: 'asd',
+    });
   });
 
   // it('should throw an error if trying to decode without extendedTypes defined', async () => {

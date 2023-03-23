@@ -120,6 +120,10 @@ export namespace VarType {
         const stack: Buffer[] = [];
 
         for (const [k, v] of Object.entries(value)) {
+          if (typeof v === 'undefined') {
+            continue;
+          }
+
           const key = VarBuffer.write(Buffer.from(k));
           const encodedValue = encode(v);
 
