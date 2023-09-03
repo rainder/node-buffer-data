@@ -174,7 +174,7 @@ export namespace VarType {
 
     function readType(buffer: Buffer): [Type, Buffer] {
       const type = buffer[0];
-      const rest = buffer.slice(1);
+      const rest = buffer.subarray(1);
 
       return [type, rest];
     }
@@ -185,7 +185,7 @@ export namespace VarType {
       if (type === VarType.Type.Object) {
         const result: DataTypeRecord = {};
         const [length, rest] = VarInt.read(r0);
-        let chunk = rest.slice(0, length);
+        let chunk = rest.subarray(0, length);
 
         while (chunk?.length) {
           const [key, r1] = VarBuffer.read(chunk);
@@ -195,7 +195,7 @@ export namespace VarType {
           chunk = decoded[1];
         }
 
-        return [result, rest.slice(length)];
+        return [result, rest.subarray(length)];
       }
 
       if (type === VarType.Type.String) {
@@ -209,7 +209,7 @@ export namespace VarType {
       }
 
       if (type === VarType.Type.Double) {
-        return [r0.readDoubleBE(0), r0.slice(8)];
+        return [r0.readDoubleBE(0), r0.subarray(8)];
       }
 
       if (type === VarType.Type.Null) {
@@ -221,7 +221,7 @@ export namespace VarType {
       }
 
       if (type === VarType.Type.Boolean) {
-        return [!!r0[0], r0.slice(1)];
+        return [!!r0[0], r0.subarray(1)];
       }
 
       if (type === VarType.Type.Array) {
@@ -240,7 +240,7 @@ export namespace VarType {
       }
 
       if (type === VarType.Type.Date) {
-        return [new Date(r0.readDoubleBE(0)), r0.slice(8)];
+        return [new Date(r0.readDoubleBE(0)), r0.subarray(8)];
       }
 
       if (type === VarType.Type.Buffer) {

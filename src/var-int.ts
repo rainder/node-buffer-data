@@ -8,22 +8,22 @@ export namespace VarInt {
     const first = input[0];
 
     if (first <= 0xfc) {
-      return [first, input.slice(1)];
+      return [first, input.subarray(1)];
     }
 
     if (first === 0xfd) {
-      return [input.readUInt16LE(1), input.slice(3)];
+      return [input.readUInt16LE(1), input.subarray(3)];
     }
 
     if (first === 0xfe) {
-      return [input.readUInt32LE(1), input.slice(5)];
+      return [input.readUInt32LE(1), input.subarray(5)];
     }
 
     if (first === 0xff) {
       const a = input.readUInt32LE(1);
       const b = input.readUInt32LE(5);
 
-      return [b * 0xffffffff + a, input.slice(9)];
+      return [b * 0xffffffff + a, input.subarray(9)];
     }
 
     throw new Error(`dunno: ${input.toString('hex')}`);

@@ -1,0 +1,8 @@
+node-option:
+  - require=ts-node/register
+#  - loader=tsx
+recursive: true
+extension:
+  - ts
+spec:
+  - 'src'
